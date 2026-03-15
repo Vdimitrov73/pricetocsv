@@ -4,8 +4,8 @@ A free tool for Canadian and US investors that downloads end-of-day adjusted
 close prices from Yahoo Finance and exports them as a Quicken-compatible CSV file.
 
 Built for investors who:
-- Hold US and Canadian ETFs, stocks, and mutual funds
-- Use Quicken Home & Business (Canadian version) to track their portfolio
+- Hold US and Canadian ETFs and stocks
+- Use Quicken to track their portfolio
 - Want to automate daily price updates instead of entering them manually
 
 ---
@@ -17,7 +17,7 @@ Built for investors who:
 1. Unzip the bundle anywhere on your PC
 2. Edit `config.json` to add your ticker symbols
 3. Double-click `PriceToCSV.exe` — use the menu or run with `--run`
-4. Import the CSV into Quicken: **File → Import → Security Prices**
+4. Import the CSV into Quicken → Investing: **File → Import → Import Prices**
 
 That's it. See [INSTALL.md](INSTALL.md) if you need more detail.
 
@@ -38,7 +38,7 @@ That's it. See [INSTALL.md](INSTALL.md) if you need more detail.
 - Downloads end-of-day adjusted close prices from Yahoo Finance
 - Supports US tickers (`VTI`, `TLT`, `AAPL`) and Canadian TSX tickers (`VUS.TO`, `XIC.TO`)
 - Strips `.TO` suffix and maps forex symbols for clean Quicken output
-- Fixed prices for mutual funds that don't trade on an exchange
+- Fixed prices for some mutual funds (DYN6004, TDB8150, etc)
 - Historical date-range downloads
 - Interactive menu or fully non-interactive CLI (`--run`)
 - Scheduled automation support via Windows Task Scheduler
@@ -91,7 +91,7 @@ Yahoo Finance Chart API (adjusted close)
    %LOCALAPPDATA%\PriceToCSV\prices_YYYYMMDD.csv
            │
            ▼
-   Quicken: File → Import → Security Prices
+   Quicken: File → Import → Import Prices
 ```
 
 ---
@@ -115,7 +115,7 @@ After each run, import the new CSV from `%LOCALAPPDATA%\PriceToCSV\` into Quicke
 
 ---
 
-## config.json
+## Sample config.json
 
 ```json
 {

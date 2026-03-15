@@ -26,7 +26,7 @@ STEP 3 — Find your CSV
 
 STEP 4 — Import into Quicken
 -----------------------------
-  File > Import > Security Prices
+  File > Import > Import Prices
   Select the CSV file and click Import.
 
   CSV format:  Symbol, Price, Date (MM/DD/YYYY)

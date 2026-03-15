@@ -67,12 +67,12 @@ it takes priority over the one in the data directory.
 
 ## Quicken Import
 
-1. Open Quicken → **File → Import → Security Prices**
+1. Open Quicken → Investing **File → Import → Import Prices**
 2. Select the generated CSV file
 3. Click **Import**
 
 The CSV format (`Symbol, Price, Date MM/DD/YYYY`) is compatible with
-Quicken Home & Business (Canadian version, 2009 and later).
+Quicken Home & Business (2009 and later).
 
 > **EUR / USD exchange rates** are not updated by the price import.
 > Update them manually: **Tools → Currency List** →
