@@ -1,0 +1,70 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write          # required to create GitHub Releases
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build EXE
+        run: pyinstaller --onefile --name PriceToCSV --icon NONE PriceToCSV.py
+
+      - name: Package release bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item dist\PriceToCSV.exe  release\
+          Copy-Item config.json           release\
+          Copy-Item README.FIRST.txt      release\
+          $tag = "${{ github.ref_name }}"
+          Compress-Archive `
+            -Path release\PriceToCSV.exe, release\config.json, release\README.FIRST.txt `
+            -DestinationPath "release\PriceToCSV_${tag}.zip"
+
+      - name: Extract changelog for this tag
+        id: changelog
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart("v")
+          $content = Get-Content CHANGELOG.md -Raw
+          # grab the block between this version header and the next ---
+          if ($content -match "(?s)## \[$ver\][^
+]*
+(.*?)(
+---|\z)") {
+            $notes = $Matches[1].Trim()
+          } else {
+            $notes = "See CHANGELOG.md for details."
+          }
+          # write to file to avoid multiline env issues
+          $notes | Out-File -FilePath release_notes.txt -Encoding utf8
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "PriceToCSV ${{ github.ref_name }}"
+          body_path: release_notes.txt
+          files: |
+            release/PriceToCSV_${{ github.ref_name }}.zip
+            setup.bat
+          draft: false
+          prerelease: false

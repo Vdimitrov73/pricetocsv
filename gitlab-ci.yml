@@ -1,0 +1,36 @@
+# PriceToCSV — GitLab CI/CD
+# Builds a standalone Windows .exe via PyInstaller on a Windows runner.
+# Requires a registered Windows GitLab Runner tagged "windows".
+
+stages:
+  - test
+  - build
+
+# ── Unit / smoke test (Linux runner) ─────────────────────────────────────────
+test_python:
+  image: python:3.11-slim
+  stage: test
+  script:
+    - python --version
+    - python -c "import urllib.request, csv, json, argparse; print('Imports OK')"
+    - python PriceToCSV.py --version
+
+# ── Windows .exe build ────────────────────────────────────────────────────────
+build_windows_exe:
+  stage: build
+  tags:
+    - windows                         # requires a Windows GitLab Runner
+  script:
+    - pip install pyinstaller
+    - pyinstaller --onefile --name PriceToCSV --icon NONE PriceToCSV.py
+    - mkdir release
+    - copy dist\\PriceToCSV.exe release\\
+    - cd release && powershell Compress-Archive PriceToCSV.exe PriceToCSV.zip
+  artifacts:
+    name: "PriceToCSV-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - release/PriceToCSV.zip
+    expire_in: 4 weeks
+  only:
+    - main
+    - tags

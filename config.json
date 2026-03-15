@@ -1,0 +1,15 @@
+{
+  "symbols": ["MNT.TO", "CGL-C.TO", "BTCX-B.TO", "ETHX-B.TO", "PSU-U.TO", "CASH.TO",
+              "VTI", "VXUS", "TLT", "IEF", "AVUV",
+              "XQQ.TO", "VUS.TO", "ZCN.TO", "VRE.TO", "CPD.TO", "VBAL.TO", "XBAL.TO", "DLR.TO",
+              "CADEUR=X", "CADUSD=X"],
+  "fixed_prices": {
+    "DYN6000": 1.0,
+    "DYN6004": 1.0,
+    "TDB8150": 10.0
+  },
+  "symbol_aliases": {
+    "CADEUR=X": "EUR",
+    "CADUSD=X": "USD"
+  }
+}

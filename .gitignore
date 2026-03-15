@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# Compiled / packaged
+*.exe
+*.zip
+
+# Output data
+prices_*.csv
+
+# Config override (keep the sample)
+my_config.json
+
+# Eggs / pip
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Editors
+.vscode/
+.idea/
+*.swp
