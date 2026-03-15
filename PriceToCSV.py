@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-PriceToCSV v1.2.0
+PriceToCSV v1.2.1
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -15,10 +14,10 @@ import sys
 import time
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.0"
+VERSION   = "1.2.1"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -101,7 +100,7 @@ def display_name(symbol: str, aliases: dict) -> str:
     if symbol.endswith(".TO"):
         return symbol[:-3]
     if symbol.endswith("=X") and len(symbol) >= 5:
-        return symbol[-5:-2]
+        return symbol[-5:-2]          # e.g. CADEUR=X → EUR
     return symbol
 
 
@@ -146,7 +145,7 @@ def fetch_prices(symbol: str, period1: int, period2: int) -> list[tuple[str, flo
     for ts, price in zip(timestamps, adj_close):
         if price is None:
             continue
-        date_str = datetime.utcfromtimestamp(ts).strftime("%m/%d/%Y")
+        date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%m/%d/%Y")
         rows.append((date_str, round(price, 4)))
     return rows
 
@@ -190,6 +189,7 @@ def run_download(
         print("[WARN] No symbols configured. Use option 3 in the menu or --symbols.")
         return None
 
+    # Partition into regular tickers vs forex
     regular = [s for s in active if not is_forex(s)]
     forex   = [s for s in active if is_forex(s)]
 
@@ -200,20 +200,22 @@ def run_download(
         p1    = _to_ts(start)
         p2    = _to_ts(end) + 86399
         label = f"{start.replace('-','')}_{end.replace('-','')}"
-        print(f"\nDownloading historical prices  ({start} → {end})\n")
+        print(f"Downloading historical prices  ({start} → {end})")
     else:
         now   = int(time.time())
         p1    = now - 86400 * 7
         p2    = now
         label = datetime.today().strftime("%Y%m%d")
-        print(f"\nDownloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})\n")
+        print(f"Downloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})")
 
+    # ── Section 1: Fixed prices ───────────────────────────────────────────────
     fixed_rows: list[tuple] = []
     for sym, price in fixed.items():
         out_sym = display_name(sym, aliases)
         print(f"  {sym:<16} {round(price,4)}  (fixed)")
         fixed_rows.append((out_sym, round(price, 4), today_str))
 
+    # ── Section 2: Regular tickers ────────────────────────────────────────────
     regular_rows: list[tuple] = []
     for sym in regular:
         if sym in fixed:
@@ -225,6 +227,7 @@ def run_download(
         for date_str, price in result:
             regular_rows.append((out_sym, round(price, 4), date_str))
 
+    # ── Section 3: Forex / exchange rates ─────────────────────────────────────
     forex_rows: list[tuple] = []
     for sym in forex:
         result = _fetch_sym(sym, p1, p2, historical)
@@ -237,7 +240,7 @@ def run_download(
     rows = fixed_rows + regular_rows + forex_rows
 
     if not rows:
-        print("\n[WARN] No data to write.")
+        print("[WARN] No data to write.")
         return None
 
     csv_path = out_dir / f"prices_{label}.csv"
@@ -246,7 +249,7 @@ def run_download(
         writer.writerow(["Symbol", "Price", "Date"])
         writer.writerows(rows)
 
-    print(f"\n  ✓  {len(rows)} row(s) written → {csv_path}\n")
+    print(f"  ✓  {len(rows)} row(s) written → {csv_path}")
     return csv_path
 
 
@@ -257,6 +260,7 @@ _SEP   = "─" * _SEP_W
 
 
 def _sym_summary(syms: list[str], max_show: int = 5) -> str:
+    """Compact one-line summary — show first N symbols then (+X more)."""
     if not syms:
         return "(none)"
     if len(syms) <= max_show:
@@ -274,7 +278,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
         syms  = cfg.get("symbols", [])
         fixed = cfg.get("fixed_prices", {})
 
-        print(f"\n{_SEP}")
+        print(f"{_SEP}")
         print(f"  PriceToCSV  v{VERSION}")
         print(_SEP)
         print(f"  Symbols : {_sym_summary(syms)}")
@@ -308,7 +312,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
             run_download(cfg, start=start, end=end, out_dir=out)
 
         elif choice == "3":
-            print(f"\n  Current symbols ({len(syms)}): {_sym_summary(syms, max_show=8)}")
+            print(f"  Current symbols ({len(syms)}): {_sym_summary(syms, max_show=8)}")
             raw = input("  New list (comma-separated, blank to cancel): ").strip()
             if raw:
                 cfg["symbols"] = [s.strip().upper() for s in raw.split(",") if s.strip()]
@@ -316,7 +320,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
                 print(f"  ✓  Saved {len(cfg['symbols'])} symbol(s).")
 
         elif choice == "Q":
-            print("\n  Goodbye!\n")
+            print("  Goodbye!")
             break
 
         else:
@@ -335,13 +339,12 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  PriceToCSV.exe --run                              Download today (config symbols)
-  PriceToCSV.exe --symbols VTI VXUS VUS.TO          Download today (custom symbols)
-  PriceToCSV.exe --history 2025-01-01 2025-01-31    Historical range
-  PriceToCSV.exe --config my_config.json --run      Custom config
-
-  python PriceToCSV.py                              Interactive menu (Python)
-  python PriceToCSV.py --run                        Download today (Python)
+  python PriceToCSV.py                              Interactive menu
+  python PriceToCSV.py --run                        Download today (config symbols)
+  python PriceToCSV.py --symbols VTI VXUS VUS.TO   Download today (custom symbols)
+  python PriceToCSV.py --history 2025-01-01 2025-01-31
+  python PriceToCSV.py --symbols VTI --history 2025-01-01 2025-01-31
+  python PriceToCSV.py --config my_config.json --run
         """,
     )
     ap.add_argument("--run",     action="store_true",
