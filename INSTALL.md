@@ -1,50 +1,54 @@
 # Installation Guide
 
-## Option A — Run from Source (all platforms)
+## Option A — Windows Executable (recommended, no Python required)
 
-### Requirements
-- Python 3.9 or newer
-- Internet access
+1. Download `PriceToCSV_vX.Y.Z.zip` from the
+   [latest release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)
+2. Unzip anywhere (e.g. `C:\Tools\PriceToCSV\`)
+3. Edit `config.json` to add your symbols
+4. Double-click `PriceToCSV.exe` — or run from the command line:
 
-### Steps
-```bash
-# 1. Clone the repository
-git clone https://gitlab.com/<your-group>/PriceToCSV.git
-cd PriceToCSV
-
-# 2. (Optional) verify Python version
-python --version        # must be 3.9+
-
-# 3. Run directly — no pip install needed
-python PriceToCSV.py
+```
+PriceToCSV.exe --run
+PriceToCSV.exe --help
 ```
 
-No virtual environment or package installation is required.
-The script uses only the Python standard library.
+> SmartScreen warning: click **More info** then **Run anyway**.
 
 ---
 
-## Option B — Windows Executable (.exe)
+## Option B — Run from Source (Python 3.9+)
 
-Download `PriceToCSV.zip` from the latest GitLab CI artifact
-(or the Releases page), unzip it, and double-click `PriceToCSV.exe`.
+```bash
+# 1. Clone the repository
+git clone https://gitlab.com/vdimitrov_73/pricetocsv.git
+cd pricetocsv
+
+# 2. Verify Python version (must be 3.9+)
+python --version
+
+# 3. Run directly — no pip install needed
+python PriceToCSV.py
+python PriceToCSV.py --run
+python PriceToCSV.py --help
+```
+
+No virtual environment or package installation required.
+The script uses only the Python standard library.
 
 ---
 
 ## Option C — Build the .exe Yourself
 
-### Requirements
-- Python 3.9+
-- PyInstaller (`pip install pyinstaller`)
-
-### Steps
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --name PriceToCSV PriceToCSV.py
+# Output: dist/PriceToCSV.exe
 ```
 
-The executable is created at `dist/PriceToCSV.exe` (Windows)
-or `dist/PriceToCSV` (Linux/macOS).
+Or run `setup.bat` — it verifies your Python install and shows run instructions.
+
+The GitLab CI pipeline (`.gitlab-ci.yml`) automates this on every `vX.Y.Z` tag push.
 
 ---
 
@@ -67,5 +71,18 @@ it takes priority over the one in the data directory.
 2. Select the generated CSV file
 3. Click **Import**
 
-The CSV format (`Symbol, Price, Date`) is compatible with
-Quicken for Windows and Quicken for Mac.
+The CSV format (`Symbol, Price, Date MM/DD/YYYY`) is compatible with
+Quicken Home & Business (Canadian version, 2009 and later).
+
+> **EUR / USD exchange rates** are not updated by the price import.
+> Update them manually: **Tools → Currency List** →
+> double-click the currency → enter the rate from the CSV.
+
+---
+
+## Scheduling Daily Downloads
+
+See the **Scheduling** section in [README.md](README.md) for
+Windows Task Scheduler setup instructions.
+
+Recommended run time: **4:20 PM ET** (markets close 4:00 PM, prices final ~4:15 PM).

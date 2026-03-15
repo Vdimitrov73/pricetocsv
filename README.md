@@ -1,54 +1,117 @@
 # PriceToCSV
 
-Download end-of-day **adjusted close prices** from Yahoo Finance and export
-them as a **Quicken-compatible CSV** file.
+A free tool for Canadian and US investors that downloads end-of-day adjusted
+close prices from Yahoo Finance and exports them as a Quicken-compatible CSV file.
 
-- ✅ Standard library only — zero dependencies
-- ✅ US and Canadian tickers (`VTI`, `VUS.TO`, `XIC.TO`, …)
-- ✅ Fixed prices for mutual funds
-- ✅ Interactive menu **or** CLI flags
-- ✅ Historical date-range downloads
-- ✅ Windows `.exe` via GitLab CI
+Built for investors who:
+- Hold US and Canadian ETFs, stocks, and mutual funds
+- Use Quicken Home & Business (Canadian version) to track their portfolio
+- Want to automate daily price updates instead of entering them manually
 
 ---
 
-## Quick Start
+## Quick Start (Windows)
 
-```bash
-python PriceToCSV.py            # interactive menu
-python PriceToCSV.py --run      # non-interactive, uses config.json
+**[⬇ Latest ZIP release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)** — unzip anywhere, double-click `PriceToCSV.exe`
+
+1. Unzip the bundle anywhere on your PC
+2. Edit `config.json` to add your ticker symbols
+3. Double-click `PriceToCSV.exe` — use the menu or run with `--run`
+4. Import the CSV into Quicken: **File → Import → Security Prices**
+
+That's it. See [INSTALL.md](INSTALL.md) if you need more detail.
+
+---
+
+## Download
+
+**[⬇ Latest ZIP release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)** — standalone `.exe`, no Python required
+
+**Source:** [GitLab](https://gitlab.com/vdimitrov_73/pricetocsv) (primary) | [GitHub](https://github.com/Vdimitrov73/pricetocsv) (mirror)
+
+> SmartScreen warning: click **More info** then **Run anyway**.
+
+---
+
+## Features
+
+- Downloads end-of-day adjusted close prices from Yahoo Finance
+- Supports US tickers (`VTI`, `TLT`, `AAPL`) and Canadian TSX tickers (`VUS.TO`, `XIC.TO`)
+- Strips `.TO` suffix and maps forex symbols for clean Quicken output
+- Fixed prices for mutual funds that don't trade on an exchange
+- Historical date-range downloads
+- Interactive menu or fully non-interactive CLI (`--run`)
+- Scheduled automation support via Windows Task Scheduler
+- Standard library only — no Python packages to install
+- Output CSV row order: fixed prices → regular tickers → exchange rates
+
+---
+
+## Basic Usage
+
+### Interactive menu
+
+```
+PriceToCSV.exe
+```
+
+or (Python users):
+
+```
+python PriceToCSV.py
+```
+
+### CLI (recommended for scheduled runs)
+
+```
+PriceToCSV.exe --run                                  Download today (config symbols)
+PriceToCSV.exe --symbols VTI VXUS VUS.TO TLT          Download today (custom symbols)
+PriceToCSV.exe --history 2025-01-01 2025-01-31        Historical date range
+PriceToCSV.exe --symbols VTI --history 2026-01-01 2026-03-13
+PriceToCSV.exe --config my_config.json --run          Custom config file
+PriceToCSV.exe --help                                 Show all options
 ```
 
 ---
 
-## CLI Reference
+## How It Works
 
-| Flag | Description |
-|------|-------------|
-| `--run` | Download today's prices (config symbols, non-interactive) |
-| `--symbols SYM …` | Override symbol list |
-| `--history START END` | Historical range `YYYY-MM-DD YYYY-MM-DD` |
-| `--config FILE` | Use a custom `config.json` |
-| `--version` | Print version and exit |
-
-### Examples
-
-```bash
-# Today's prices for config symbols
-python PriceToCSV.py --run
-
-# Today's prices, custom symbols (US + Canadian)
-python PriceToCSV.py --symbols VTI VXUS TLT VUS.TO XIC.TO
-
-# Historical download for config symbols
-python PriceToCSV.py --history 2025-01-01 2025-01-31
-
-# Historical download for specific symbols
-python PriceToCSV.py --symbols VTI VXUS --history 2025-01-01 2025-01-31
-
-# Use a different config file
-python PriceToCSV.py --config ~/my_portfolio.json --run
 ```
+Yahoo Finance Chart API (adjusted close)
+           │
+           ▼
+   config.json symbols
+   + fixed_prices
+   + symbol_aliases
+           │
+           ▼
+   PriceToCSV.exe --run
+           │
+           ▼
+   %LOCALAPPDATA%\PriceToCSV\prices_YYYYMMDD.csv
+           │
+           ▼
+   Quicken: File → Import → Security Prices
+```
+
+---
+
+## Scheduling Daily Downloads
+
+North American markets close at **4:00 PM ET**. Prices are final by ~4:15 PM ET.
+Recommended scheduled run time: **4:20 PM ET**.
+
+### Windows Task Scheduler
+
+1. Open **Task Scheduler → Create Basic Task**
+2. **Trigger:** Daily at 4:20 PM
+3. **Action:** Start a program
+   - Program/script: `C:\path\to\PriceToCSV.exe`
+   - Arguments: `--run`
+   - Start in: `C:\path\to\` *(folder containing `config.json`)*
+4. Click **Finish**
+
+After each run, import the new CSV from `%LOCALAPPDATA%\PriceToCSV\` into Quicken.
 
 ---
 
@@ -56,7 +119,7 @@ python PriceToCSV.py --config ~/my_portfolio.json --run
 
 ```json
 {
-  "symbols": ["VTI", "VXUS", "TLT", "VUS.TO", "XIC.TO", "CADEUR=X", "CADUSD=X"],
+  "symbols": ["MNT.TO", "CGL-C.TO", "VTI", "VXUS", "TLT", "VUS.TO", "CADEUR=X", "CADUSD=X"],
   "fixed_prices": {
     "DYN6000": 1.0,
     "DYN6004": 1.0,
@@ -69,14 +132,16 @@ python PriceToCSV.py --config ~/my_portfolio.json --run
 }
 ```
 
-- **`symbols`** — tickers downloaded from Yahoo Finance - .TO suffix stripped
-- **`fixed_prices`** — mutual fund codes always written at the given price
-- **`symbol_aliases`** — override any symbol's output name.
+| Key | Purpose |
+|-----|---------|
+| `symbols` | Tickers fetched from Yahoo Finance |
+| `fixed_prices` | Mutual fund codes written at a fixed price, never fetched |
+| `symbol_aliases` | Override any symbol's output name in the CSV |
 
 Config search order:
 1. Path given by `--config`
 2. `config.json` in the current working directory
-3. Platform data directory (see [INSTALL.md](INSTALL.md))
+3. `%LOCALAPPDATA%\PriceToCSV\config.json`
 
 ---
 
@@ -84,80 +149,97 @@ Config search order:
 
 ```
 Symbol,Price,Date
-VTI,278.4321,03/14/2026
-VXUS,57.1100,03/14/2026
-VUS.TO,101.2500,03/14/2026
-TDB8150,10.0000,03/14/2026
+DYN6000,1.0,03/14/2026
+MNT,72.4,03/13/2026
+VTI,326.13,03/13/2026
+VUS,113.0,03/13/2026
+EUR,0.6385,03/14/2026
+USD,0.729,03/14/2026
 ```
 
-**File naming:**
-
-| Mode | Filename |
-|------|----------|
+| Mode | Output filename |
+|------|----------------|
 | Today | `prices_20260314.csv` |
-| Historical | `prices_20250101_20250131.csv` |
+| Historical | `prices_20260101_20260313.csv` |
 
-**Output directory:**
-
-| Platform | Path |
-|----------|------|
-| Windows  | `%LOCALAPPDATA%\PriceToCSV\` |
-| Linux / macOS | `~/.local/share/PriceToCSV/` |
+Output directory: `%LOCALAPPDATA%\PriceToCSV\` (Windows)
 
 ---
 
-## Interactive Menu
+## Quicken Import
 
-```
-──────────────────────────────────────────────────────
-  PriceToCSV  v1.1.0
-──────────────────────────────────────────────────────
-  Symbols : VTI, VXUS, TLT, VUS.TO, XIC.TO
-  Fixed   : DYN6000, DYN6004, TDB8150
-  Output  : /home/vlad/.local/share/PriceToCSV
-──────────────────────────────────────────────────────
-  1  Download prices (today)
-  2  Download historical prices
-  3  Edit symbol list
-  Q  Quit
-──────────────────────────────────────────────────────
-```
+1. **File → Import → Security Prices**
+2. Select the CSV file → click **Import**
+
+> **EUR / USD exchange rates:** Quicken's price import does not update currency
+> exchange rates. Update them manually after each import:
+> **Tools → Currency List** → double-click **USD** or **EUR** → enter the
+> rate shown in the script output or CSV.
 
 ---
 
 ## Ticker Format
 
-| Market | Example |
-|--------|---------|
-| US stocks / ETFs | `VTI`, `TLT`, `AAPL` |
-| TSX (Canada) | `VUS.TO`, `XIC.TO`, `ZAG.TO` |
-| Mutual funds (fixed) | `TDB8150`, `DYN6000` |
+| Market | Config symbol | CSV output |
+|--------|--------------|------------|
+| US stocks / ETFs | `VTI`, `TLT`, `AAPL` | `VTI`, `TLT`, `AAPL` |
+| TSX (Canada) | `VUS.TO`, `XIC.TO`, `ZAG.TO` | `VUS`, `XIC`, `ZAG` |
+| Forex (CAD base) | `CADEUR=X`, `CADUSD=X` | `EUR`, `USD` |
+| Mutual funds (fixed) | `TDB8150`, `DYN6000` | `TDB8150`, `DYN6000` |
+
+---
+
+## File Reference
+
+| File | Purpose |
+|------|---------|
+| `PriceToCSV.exe` | Standalone Windows executable — no Python required |
+| `PriceToCSV.py` | Python source — run directly with Python 3.9+ |
+| `config.json` | Your symbol list, fixed prices, and aliases |
+| `setup.bat` | Python users: verifies Python install, shows run instructions |
+| `README.FIRST.txt` | Quick start guide included in the ZIP bundle |
+| `INSTALL.md` | Installation options and first-time setup |
+| `CHANGELOG.md` | Version history |
+
+---
+
+## Price Precision Note
+
+Prices are stored as `round(price, 4)` — natural Python float representation
+(e.g. `72.4`, `0.729`). Prices before a dividend ex-date will show more decimal
+places than the Yahoo Finance History page (which rounds to 2) — both values are
+correct. The extra precision reflects the dividend adjustment factor and is more
+accurate for cost-basis calculations in Quicken.
 
 ---
 
 ## Data Source
 
-Yahoo Finance Chart API v8
+Yahoo Finance Chart API v8 — adjusted close prices at `1d` interval.
+
 ```
 https://query1.finance.yahoo.com/v8/finance/chart/{symbol}
 ```
-Returns adjusted close prices at daily (`1d`) interval.
 
 ---
 
-## Building the Windows .exe
+## Contributing
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile --name PriceToCSV PriceToCSV.py
-# Output: dist/PriceToCSV.exe
-```
+1. [Open an issue](https://gitlab.com/vdimitrov_73/pricetocsv/-/issues) describing the problem or suggestion
+2. Fork the repository on [GitLab](https://gitlab.com/vdimitrov_73/pricetocsv)
+3. Create a branch: `git checkout -b fix/your-fix-name`
+4. Make your changes and test them
+5. Submit a merge request with a clear description of what changed and why
 
-The GitLab CI pipeline (`.gitlab-ci.yml`) automates this on every push
-to `main` or on tagged releases, requiring a registered Windows runner.
+---
+
+## Disclaimer
+
+This tool is for personal convenience only. It is not financial advice.
+Always verify imported prices against your brokerage statements.
 
 ---
 
 ## License
 
-MIT
+MIT License — see [LICENSE](LICENSE) for full text.
