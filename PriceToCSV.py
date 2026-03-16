@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.2
+PriceToCSV v1.2.3
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -10,15 +10,15 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import sys
 import time
-import shutil
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.2"
+VERSION   = "1.2.3"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -34,41 +34,61 @@ _HEADERS  = {
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 def data_dir() -> Path:
+    """
+    Persistent user data directory for config.json and CSV output.
+
+    Reads LOCALAPPDATA from the environment directly (string join),
+    to avoid MSIX filesystem virtualization writing to the package cache.
+
+    Windows : %LOCALAPPDATA%\PriceToCSV\
+    Linux   : ~/.local/share/PriceToCSV/
+    macOS   : ~/.local/share/PriceToCSV/
+    """
     if sys.platform == "win32":
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+        local_app_data = os.environ.get(
+            "LOCALAPPDATA",
+            os.path.join(os.path.expanduser("~"), "AppData", "Local"),
+        )
+        d = Path(os.path.join(local_app_data, APP_NAME))
     else:
-        base = Path.home() / ".local" / "share"
-    d = base / APP_NAME
+        d = Path.home() / ".local" / "share" / APP_NAME
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
 def exe_dir() -> Path:
-    """Directory containing the running exe or script.
-    Handles PyInstaller bundles (frozen) and plain Python execution.
+    """
+    Directory containing the running exe or script.
     Used to locate the bundled config.json when installed via MSIX.
     """
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent   # dist/PriceToCSV.exe or MSIX install dir
-    return Path(__file__).parent             # script directory when running via Python
+        return Path(sys.executable).parent   # MSIX install dir or dist/
+    return Path(__file__).parent             # script directory
 
 
 def resolve_config(override: str | None) -> Path:
     if override:
         return Path(override)
-    # 1. config.json in current working directory (standalone / Python usage)
+
+    # Frozen exe (PyInstaller / MSIX): always use the persistent data dir.
+    # Never use CWD — when launched via MSIX the CWD is the read-only
+    # WindowsApps install folder and writes there get silently redirected
+    # to the package virtual store (%LOCALAPPDATA%\Packages\...\LocalCache).
+    if getattr(sys, "frozen", False):
+        data_path = data_dir() / "config.json"
+        if not data_path.exists():
+            # First run: seed from the bundled config.json next to the exe
+            bundled = exe_dir() / "config.json"
+            if bundled.exists():
+                shutil.copy2(bundled, data_path)
+        return data_path
+
+    # Plain Python: check local working directory first (preserves existing
+    # behaviour for command-line and setup.bat users).
     local = Path("config.json")
     if local.exists():
         return local
-    # 2. Persistent user config in data directory
-    data_path = data_dir() / "config.json"
-    if data_path.exists():
-        return data_path
-    # 3. First run when installed via MSIX: seed from bundled config next to exe
-    bundled = exe_dir() / "config.json"
-    if bundled.exists() and bundled.resolve() != local.resolve():
-        shutil.copy2(bundled, data_path)
-    return data_path
+    return data_dir() / "config.json"
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -209,7 +229,7 @@ def run_download(
         print("[WARN] No symbols configured. Use option 3 in the menu or --symbols.")
         return None
 
-    # Partition into regular tickers vs forex
+    # Partition into regular tickers vs forex                                         
     regular = [s for s in active if not is_forex(s)]
     forex   = [s for s in active if is_forex(s)]
 
@@ -220,22 +240,22 @@ def run_download(
         p1    = _to_ts(start)
         p2    = _to_ts(end) + 86399
         label = f"{start.replace('-','')}_{end.replace('-','')}"
-        print(f"Downloading historical prices  ({start} → {end})")
+        print(f"\nDownloading historical prices  ({start} → {end})\n")
     else:
         now   = int(time.time())
         p1    = now - 86400 * 7
         p2    = now
         label = datetime.today().strftime("%Y%m%d")
-        print(f"Downloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})")
+        print(f"\nDownloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})\n")
 
-    # ── Section 1: Fixed prices ───────────────────────────────────────────────
+# ── Section 1: Fixed prices ───────────────────────────────────────────────                                                                                    
     fixed_rows: list[tuple] = []
     for sym, price in fixed.items():
         out_sym = display_name(sym, aliases)
         print(f"  {sym:<16} {round(price,4)}  (fixed)")
         fixed_rows.append((out_sym, round(price, 4), today_str))
 
-    # ── Section 2: Regular tickers ────────────────────────────────────────────
+# ── Section 2: Regular tickers ────────────────────────────────────────────                                                                                  
     regular_rows: list[tuple] = []
     for sym in regular:
         if sym in fixed:
@@ -247,7 +267,7 @@ def run_download(
         for date_str, price in result:
             regular_rows.append((out_sym, round(price, 4), date_str))
 
-    # ── Section 3: Forex / exchange rates ─────────────────────────────────────
+# ── Section 3: Forex / exchange rates ─────────────────────────────────────                                                                           
     forex_rows: list[tuple] = []
     for sym in forex:
         result = _fetch_sym(sym, p1, p2, historical)
@@ -260,7 +280,7 @@ def run_download(
     rows = fixed_rows + regular_rows + forex_rows
 
     if not rows:
-        print("[WARN] No data to write.")
+        print("\n[WARN] No data to write.")
         return None
 
     csv_path = out_dir / f"prices_{label}.csv"
@@ -269,7 +289,7 @@ def run_download(
         writer.writerow(["Symbol", "Price", "Date"])
         writer.writerows(rows)
 
-    print(f"  ✓  {len(rows)} row(s) written → {csv_path}")
+    print(f"\n  ✓  {len(rows)} row(s) written → {csv_path}\n")
     return csv_path
 
 
@@ -280,7 +300,7 @@ _SEP   = "─" * _SEP_W
 
 
 def _sym_summary(syms: list[str], max_show: int = 5) -> str:
-    """Compact one-line summary — show first N symbols then (+X more)."""
+    """Compact one-line summary — show first N symbols then (+X more)."""                                                                           
     if not syms:
         return "(none)"
     if len(syms) <= max_show:
@@ -298,7 +318,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
         syms  = cfg.get("symbols", [])
         fixed = cfg.get("fixed_prices", {})
 
-        print(f"{_SEP}")
+        print(f"\n{_SEP}")
         print(f"  PriceToCSV  v{VERSION}")
         print(_SEP)
         print(f"  Symbols : {_sym_summary(syms)}")
@@ -332,7 +352,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
             run_download(cfg, start=start, end=end, out_dir=out)
 
         elif choice == "3":
-            print(f"  Current symbols ({len(syms)}): {_sym_summary(syms, max_show=8)}")
+            print(f"\n  Current symbols ({len(syms)}): {_sym_summary(syms, max_show=8)}")
             raw = input("  New list (comma-separated, blank to cancel): ").strip()
             if raw:
                 cfg["symbols"] = [s.strip().upper() for s in raw.split(",") if s.strip()]
@@ -340,7 +360,7 @@ def menu(cfg: dict, cfg_path: Path) -> None:
                 print(f"  ✓  Saved {len(cfg['symbols'])} symbol(s).")
 
         elif choice == "Q":
-            print("  Goodbye!")
+            print("\n  Goodbye!\n")
             break
 
         else:
@@ -359,12 +379,13 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python PriceToCSV.py                              Interactive menu
-  python PriceToCSV.py --run                        Download today (config symbols)
-  python PriceToCSV.py --symbols VTI VXUS VUS.TO   Download today (custom symbols)
-  python PriceToCSV.py --history 2025-01-01 2025-01-31
-  python PriceToCSV.py --symbols VTI --history 2025-01-01 2025-01-31
-  python PriceToCSV.py --config my_config.json --run
+  PriceToCSV.exe --run                              Download today (config symbols)
+  PriceToCSV.exe --symbols VTI VXUS VUS.TO          Download today (custom symbols)
+  PriceToCSV.exe --history 2025-01-01 2025-01-31    Historical range
+  PriceToCSV.exe --config my_config.json --run      Custom config
+
+  python PriceToCSV.py                              Interactive menu (Python)
+  python PriceToCSV.py --run                        Download today (Python)
         """,
     )
     ap.add_argument("--run",     action="store_true",
