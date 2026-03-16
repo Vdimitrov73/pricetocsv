@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.1
+PriceToCSV v1.2.2
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -12,12 +12,13 @@ import json
 import os
 import sys
 import time
+import shutil
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
-VERSION   = "1.2.1"
+VERSION   = "1.2.2"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -42,13 +43,32 @@ def data_dir() -> Path:
     return d
 
 
+def exe_dir() -> Path:
+    """Directory containing the running exe or script.
+    Handles PyInstaller bundles (frozen) and plain Python execution.
+    Used to locate the bundled config.json when installed via MSIX.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent   # dist/PriceToCSV.exe or MSIX install dir
+    return Path(__file__).parent             # script directory when running via Python
+
+
 def resolve_config(override: str | None) -> Path:
     if override:
         return Path(override)
+    # 1. config.json in current working directory (standalone / Python usage)
     local = Path("config.json")
     if local.exists():
         return local
-    return data_dir() / "config.json"
+    # 2. Persistent user config in data directory
+    data_path = data_dir() / "config.json"
+    if data_path.exists():
+        return data_path
+    # 3. First run when installed via MSIX: seed from bundled config next to exe
+    bundled = exe_dir() / "config.json"
+    if bundled.exists() and bundled.resolve() != local.resolve():
+        shutil.copy2(bundled, data_path)
+    return data_path
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
