@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.4
+PriceToCSV v1.2.5
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import shutil
 import sys
 import time
@@ -35,10 +34,11 @@ _HEADERS  = {
 
 def data_dir() -> Path:
     """
-    Returns the physical %LOCALAPPDATA%\PriceToCSV directory,
-    bypassing MSIX filesystem redirection.
+    MSIX/Store (frozen exe): Documents\\PriceToCSV\\
+    Plain Python script    : directory where the script lives (or CWD)
     """
-    if sys.platform == "win32":
+    if getattr(sys, "frozen", False):
+        # Frozen MSIX/PyInstaller exe — use Documents
         import ctypes
         from ctypes import wintypes
 
@@ -50,72 +50,49 @@ def data_dir() -> Path:
                 ("Data4", wintypes.BYTE * 8),
             ]
 
-        # FOLDERID_LocalAppData
         fid = GUID(
-            0xF1B32785, 0x6FBA, 0x4FCF,
-            (0x9D, 0x55, 0x7B, 0x8E, 0x7F, 0x15, 0x70, 0x91)
+            0xFDD39AD0, 0x238F, 0x46AF,
+            (0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7)
         )
-
-        KF_FLAG_NO_PACKAGE_REDIRECTION = 0x00001000
-
         path_ptr = wintypes.LPWSTR()
-
         ret = ctypes.windll.shell32.SHGetKnownFolderPath(
-            ctypes.byref(fid),
-            KF_FLAG_NO_PACKAGE_REDIRECTION,
-            None,
-            ctypes.byref(path_ptr),
+            ctypes.byref(fid), 0, None, ctypes.byref(path_ptr)
         )
-
         if ret == 0 and path_ptr.value:
             base_path = Path(path_ptr.value)
             ctypes.windll.ole32.CoTaskMemFree(path_ptr)
         else:
-            base_path = Path(os.environ.get("LOCALAPPDATA",
-                 os.path.join(os.path.expanduser("~"), "AppData", "Local")))
-
+            base_path = Path.home() / "Documents"
         base = base_path / APP_NAME
 
     else:
-        base = Path.home() / ".local" / "share" / APP_NAME
+        # Plain Python script — use script's own directory
+        base = Path(__file__).parent
+
     base.mkdir(parents=True, exist_ok=True)
     return base
 
-
 def exe_dir() -> Path:
-    """
-    Directory containing the running exe or script.
-    Used to locate the bundled config.json when installed via MSIX.
-    """
+    """Directory containing the running exe or script."""
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent   # MSIX install dir or dist/
-    return Path(__file__).parent             # script directory
-
+        return Path(sys.executable).parent  # MSIX install dir
+    return Path(__file__).parent            # script directory
 
 def resolve_config(override: str | None) -> Path:
     if override:
         return Path(override)
 
-    # Frozen exe (PyInstaller / MSIX): always use the persistent data dir.
-    # Never use CWD — when launched via MSIX the CWD is the read-only
-    # WindowsApps install folder and writes there get silently redirected
-    # to the package virtual store (%LOCALAPPDATA%\Packages\...\LocalCache).
     if getattr(sys, "frozen", False):
+        # MSIX: always use persistent data dir
         data_path = data_dir() / "config.json"
         if not data_path.exists():
-            # First run: seed from the bundled config.json next to the exe
             bundled = exe_dir() / "config.json"
             if bundled.exists():
                 shutil.copy2(bundled, data_path)
         return data_path
 
-    # Plain Python: check local working directory first (preserves existing
-    # behaviour for command-line users).
-    local = Path("config.json")
-    if local.exists():
-        return local
-    return data_dir() / "config.json"
-
+    # Plain Python: config.json lives next to the script
+    return Path(__file__).parent / "config.json"
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
