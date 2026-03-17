@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.3
+PriceToCSV v1.2.4
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -18,7 +18,7 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.3"
+VERSION   = "1.2.4"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -37,13 +37,25 @@ def data_dir() -> Path:
     """
     Persistent user data directory for config.json and CSV output.
 
-    Reads LOCALAPPDATA from the environment directly (string join),
-    to avoid MSIX filesystem virtualization writing to the package cache.
+    When running as a frozen exe (PyInstaller / MSIX): reads LOCALAPPDATA
+    from the environment and creates the directory with os.makedirs().
+    This matches the pattern that correctly bypasses MSIX filesystem
+    virtualization and writes to the real %LOCALAPPDATA%\PriceToCSV\.
 
-    Windows : %LOCALAPPDATA%\PriceToCSV\
-    Linux   : ~/.local/share/PriceToCSV/
-    macOS   : ~/.local/share/PriceToCSV/
+    When running as a plain Python script: same LOCALAPPDATA path on
+    Windows, ~/.local/share/PriceToCSV/ on Linux/macOS.
     """
+    if getattr(sys, "frozen", False):
+        # Frozen exe (PyInstaller / MSIX) — use os.makedirs, not Path.mkdir
+        local_app_data = os.environ.get(
+            "LOCALAPPDATA",
+            os.path.join(os.path.expanduser("~"), "AppData", "Local"),
+        )
+        d = os.path.join(local_app_data, APP_NAME)
+        os.makedirs(d, exist_ok=True)
+        return Path(d)
+
+    # Plain Python script
     if sys.platform == "win32":
         local_app_data = os.environ.get(
             "LOCALAPPDATA",
@@ -84,7 +96,7 @@ def resolve_config(override: str | None) -> Path:
         return data_path
 
     # Plain Python: check local working directory first (preserves existing
-    # behaviour for command-line and setup.bat users).
+    # behaviour for command-line users).
     local = Path("config.json")
     if local.exists():
         return local
@@ -140,7 +152,7 @@ def display_name(symbol: str, aliases: dict) -> str:
     if symbol.endswith(".TO"):
         return symbol[:-3]
     if symbol.endswith("=X") and len(symbol) >= 5:
-        return symbol[-5:-2]          # e.g. CADEUR=X → EUR
+        return symbol[-5:-2]
     return symbol
 
 
@@ -229,7 +241,7 @@ def run_download(
         print("[WARN] No symbols configured. Use option 3 in the menu or --symbols.")
         return None
 
-    # Partition into regular tickers vs forex                                         
+    # Partition into regular tickers vs forex
     regular = [s for s in active if not is_forex(s)]
     forex   = [s for s in active if is_forex(s)]
 
@@ -248,14 +260,14 @@ def run_download(
         label = datetime.today().strftime("%Y%m%d")
         print(f"\nDownloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})\n")
 
-# ── Section 1: Fixed prices ───────────────────────────────────────────────                                                                                    
+    # ── Section 1: Fixed prices ───────────────────────────────────────────────
     fixed_rows: list[tuple] = []
     for sym, price in fixed.items():
         out_sym = display_name(sym, aliases)
         print(f"  {sym:<16} {round(price,4)}  (fixed)")
         fixed_rows.append((out_sym, round(price, 4), today_str))
 
-# ── Section 2: Regular tickers ────────────────────────────────────────────                                                                                  
+    # ── Section 2: Regular tickers ────────────────────────────────────────────
     regular_rows: list[tuple] = []
     for sym in regular:
         if sym in fixed:
@@ -267,7 +279,7 @@ def run_download(
         for date_str, price in result:
             regular_rows.append((out_sym, round(price, 4), date_str))
 
-# ── Section 3: Forex / exchange rates ─────────────────────────────────────                                                                           
+    # ── Section 3: Forex / exchange rates ─────────────────────────────────────
     forex_rows: list[tuple] = []
     for sym in forex:
         result = _fetch_sym(sym, p1, p2, historical)
@@ -300,7 +312,7 @@ _SEP   = "─" * _SEP_W
 
 
 def _sym_summary(syms: list[str], max_show: int = 5) -> str:
-    """Compact one-line summary — show first N symbols then (+X more)."""                                                                           
+    """Compact one-line summary — show first N symbols then (+X more)."""
     if not syms:
         return "(none)"
     if len(syms) <= max_show:
@@ -412,7 +424,10 @@ Examples:
                 datetime.strptime(val, "%Y-%m-%d")
             except ValueError:
                 ap.error(f"{label} must be YYYY-MM-DD, got: {val!r}")
-
+    
+    if start and end and start > end:
+        ap.error("--history START must be before END date.")
+        
     if args.run or args.symbols or args.history:
         run_download(cfg, symbols=symbols, start=start, end=end)
     else:
