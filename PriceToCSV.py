@@ -18,7 +18,7 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.4"
+VERSION   = "1.2.5"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -35,37 +35,51 @@ _HEADERS  = {
 
 def data_dir() -> Path:
     """
-    Persistent user data directory for config.json and CSV output.
-
-    When running as a frozen exe (PyInstaller / MSIX): reads LOCALAPPDATA
-    from the environment and creates the directory with os.makedirs().
-    This matches the pattern that correctly bypasses MSIX filesystem
-    virtualization and writes to the real %LOCALAPPDATA%\PriceToCSV\.
-
-    When running as a plain Python script: same LOCALAPPDATA path on
-    Windows, ~/.local/share/PriceToCSV/ on Linux/macOS.
+    Returns the physical %LOCALAPPDATA%\PriceToCSV directory,
+    bypassing MSIX filesystem redirection.
     """
-    if getattr(sys, "frozen", False):
-        # Frozen exe (PyInstaller / MSIX) — use os.makedirs, not Path.mkdir
-        local_app_data = os.environ.get(
-            "LOCALAPPDATA",
-            os.path.join(os.path.expanduser("~"), "AppData", "Local"),
-        )
-        d = os.path.join(local_app_data, APP_NAME)
-        os.makedirs(d, exist_ok=True)
-        return Path(d)
-
-    # Plain Python script
     if sys.platform == "win32":
-        local_app_data = os.environ.get(
-            "LOCALAPPDATA",
-            os.path.join(os.path.expanduser("~"), "AppData", "Local"),
+        import ctypes
+        from ctypes import wintypes
+
+        class GUID(ctypes.Structure):
+            _fields_ = [
+                ("Data1", wintypes.DWORD),
+                ("Data2", wintypes.WORD),
+                ("Data3", wintypes.WORD),
+                ("Data4", wintypes.BYTE * 8),
+            ]
+
+        # FOLDERID_LocalAppData
+        fid = GUID(
+            0xF1B32785, 0x6FBA, 0x4FCF,
+            (0x9D, 0x55, 0x7B, 0x8E, 0x7F, 0x15, 0x70, 0x91)
         )
-        d = Path(os.path.join(local_app_data, APP_NAME))
+
+        KF_FLAG_NO_PACKAGE_REDIRECTION = 0x00001000
+
+        path_ptr = wintypes.LPWSTR()
+
+        ret = ctypes.windll.shell32.SHGetKnownFolderPath(
+            ctypes.byref(fid),
+            KF_FLAG_NO_PACKAGE_REDIRECTION,
+            None,
+            ctypes.byref(path_ptr),
+        )
+
+        if ret == 0 and path_ptr.value:
+            base_path = Path(path_ptr.value)
+            ctypes.windll.ole32.CoTaskMemFree(path_ptr)
+        else:
+            base_path = Path(os.environ.get("LOCALAPPDATA",
+                 os.path.join(os.path.expanduser("~"), "AppData", "Local")))
+
+        base = base_path / APP_NAME
+
     else:
-        d = Path.home() / ".local" / "share" / APP_NAME
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+        base = Path.home() / ".local" / "share" / APP_NAME
+    base.mkdir(parents=True, exist_ok=True)
+    return base
 
 
 def exe_dir() -> Path:
