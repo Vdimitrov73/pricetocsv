@@ -13,7 +13,11 @@ build-exe:
   script:
     - python --version
     - pip install pyinstaller
-    - 'pyinstaller --onefile --console --name PriceToCSV PriceToCSV.py'
+    - '$tag = $env:CI_COMMIT_TAG -replace "^v",""'
+    - '$parts = $tag.Split(".")'
+    - '$v = "$($parts[0]), $($parts[1]), $($parts[2]), 0"'
+    - '(Get-Content version.txt) -replace "\(\d+, \d+, \d+, \d+\)", "($v)" | Set-Content version.txt'
+    - 'pyinstaller --onefile --console --name PriceToCSV --version-file version.txt PriceToCSV.py'
     - '$hash = (Get-FileHash dist\PriceToCSV.exe -Algorithm SHA256).Hash.ToLower()'
     - '$version = $env:CI_COMMIT_TAG'
     - '$zipName = "PriceToCSV_${version}.zip"'

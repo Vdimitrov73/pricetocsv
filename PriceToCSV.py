@@ -35,10 +35,10 @@ _HEADERS  = {
 def data_dir() -> Path:
     """
     MSIX/Store (frozen exe): Documents\\PriceToCSV\\
-    Plain Python script    : directory where the script lives (or CWD)
+    Plain Python script    : directory where the script lives
     """
     if getattr(sys, "frozen", False):
-        # Frozen MSIX/PyInstaller exe — use Documents
+		# Frozen MSIX/PyInstaller exe — use Documents											   
         import ctypes
         from ctypes import wintypes
 
@@ -66,7 +66,7 @@ def data_dir() -> Path:
         base = base_path / APP_NAME
 
     else:
-        # Plain Python script — use script's own directory
+		# Plain Python script — use script's own directory
         base = Path(__file__).parent
 
     base.mkdir(parents=True, exist_ok=True)
@@ -83,7 +83,7 @@ def resolve_config(override: str | None) -> Path:
         return Path(override)
 
     if getattr(sys, "frozen", False):
-        # MSIX: always use persistent data dir
+		# MSIX: always use persistent data dir									  
         data_path = data_dir() / "config.json"
         if not data_path.exists():
             bundled = exe_dir() / "config.json"
@@ -91,8 +91,20 @@ def resolve_config(override: str | None) -> Path:
                 shutil.copy2(bundled, data_path)
         return data_path
 
-    # Plain Python: config.json lives next to the script
+	# Plain Python: config.json lives next to the script												
     return Path(__file__).parent / "config.json"
+
+
+# ── Console visibility ────────────────────────────────────────────────────────
+
+def _hide_console() -> None:
+    """Hide the console window for silent --run mode (frozen exe only)."""
+    if sys.platform == "win32":
+        import ctypes
+        hWnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hWnd:
+            ctypes.windll.user32.ShowWindow(hWnd, 0)  # SW_HIDE = 0
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -232,7 +244,7 @@ def run_download(
         print("[WARN] No symbols configured. Use option 3 in the menu or --symbols.")
         return None
 
-    # Partition into regular tickers vs forex
+	# Partition into regular tickers vs forex										 
     regular = [s for s in active if not is_forex(s)]
     forex   = [s for s in active if is_forex(s)]
 
@@ -250,15 +262,15 @@ def run_download(
         p2    = now
         label = datetime.today().strftime("%Y%m%d")
         print(f"\nDownloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})\n")
-
-    # ── Section 1: Fixed prices ───────────────────────────────────────────────
+   
+   # ── Section 1: Fixed prices ───────────────────────────────────────────────			   
     fixed_rows: list[tuple] = []
     for sym, price in fixed.items():
         out_sym = display_name(sym, aliases)
         print(f"  {sym:<16} {round(price,4)}  (fixed)")
         fixed_rows.append((out_sym, round(price, 4), today_str))
 
-    # ── Section 2: Regular tickers ────────────────────────────────────────────
+   # ── Section 2: Regular tickers ────────────────────────────────────────────		   
     regular_rows: list[tuple] = []
     for sym in regular:
         if sym in fixed:
@@ -402,6 +414,9 @@ Examples:
     ap.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     args = ap.parse_args()
 
+    if args.run and getattr(sys, "frozen", False):
+        _hide_console()
+
     cfg_path = resolve_config(args.config)
     cfg      = load_config(cfg_path)
 
@@ -415,10 +430,10 @@ Examples:
                 datetime.strptime(val, "%Y-%m-%d")
             except ValueError:
                 ap.error(f"{label} must be YYYY-MM-DD, got: {val!r}")
-    
+
     if start and end and start > end:
         ap.error("--history START must be before END date.")
-        
+
     if args.run or args.symbols or args.history:
         run_download(cfg, symbols=symbols, start=start, end=end)
     else:
