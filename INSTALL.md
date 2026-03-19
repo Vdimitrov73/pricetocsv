@@ -1,6 +1,16 @@
 # Installation Guide
 
-## Option A — Windows Executable (recommended, no Python required)
+## Option A — Microsoft Store (recommended)
+
+1. Search for **PriceToCSV** in the [Microsoft Store](https://apps.microsoft.com/detail/9N8QB9ZLPPTB)
+   or click the link to install directly
+2. Click **Get** — no SmartScreen warning, auto-updates automatically
+3. Launch from the Start menu
+4. On first run, edit `config.json` to add your symbols
+
+---
+
+## Option B — Windows Executable (ZIP, no Python required)
 
 1. Download `PriceToCSV_vX.Y.Z.zip` from the
    [latest release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)
@@ -17,7 +27,7 @@ PriceToCSV.exe --help
 
 ---
 
-## Option B — Run from Source (Python 3.9+)
+## Option C — Run from Source (Python 3.9+)
 
 ```bash
 # 1. Clone the repository
@@ -38,7 +48,7 @@ The script uses only the Python standard library.
 
 ---
 
-## Option C — Build the .exe Yourself
+## Option D — Build the .exe Yourself
 
 ```bash
 pip install pyinstaller
@@ -67,16 +77,22 @@ it takes priority over the one in the data directory.
 
 ## Quicken Import
 
+For fully automated price import and currency update, set up `ImportPrices.vbs`.
+See **[QUICKEN_SETUP.md](QUICKEN_SETUP.md)** for step-by-step instructions.
+
+Manual import:
+
 1. Open Quicken → Investing **File → Import → Import Prices**
 2. Select the generated CSV file
 3. Click **Import**
 
 The CSV format (`Symbol, Price, Date MM/DD/YYYY`) is compatible with
-Quicken Home & Business (2009 and later).
+Quicken Home & Business (2007–2013, Windows).
 
 > **EUR / USD exchange rates** are not updated by the price import.
 > Update them manually: **Tools → Currency List** →
 > double-click the currency → enter the rate from the CSV.
+> (This is automated by `ImportPrices.vbs` — see [QUICKEN_SETUP.md](QUICKEN_SETUP.md).)
 
 ---
 

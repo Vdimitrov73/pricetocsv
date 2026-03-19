@@ -2,10 +2,15 @@
   PriceToCSV — Quick Start
 ============================================================
 
-STEP 1 — Run the tool
+STEP 1 — Get the tool
 ---------------------
-  Double-click PriceToCSV.exe   (Windows, no Python required)
-  or: python PriceToCSV.py      (if you have Python 3.9+)
+  Microsoft Store (recommended — auto-updates, no warnings):
+    Search for PriceToCSV in the Microsoft Store, then
+    launch it from the Start menu.
+
+  ZIP release:
+    Double-click PriceToCSV.exe   (no Python required)
+    or: python PriceToCSV.py      (if you have Python 3.9+)
 
 STEP 2 — Use the menu
 ----------------------
@@ -26,14 +31,19 @@ STEP 3 — Find your CSV
 
 STEP 4 — Import into Quicken
 -----------------------------
-  File > Import > Import Prices
-  Select the CSV file and click Import.
+  AUTOMATED (recommended):
+    Use ImportPrices.vbs for one-click import + currency update.
+    See QUICKEN_SETUP.md for setup instructions.
 
-  CSV format:  Symbol, Price, Date (MM/DD/YYYY)
+  MANUAL:
+    File > Import > Import Prices
+    Select the CSV file and click Import.
 
-  NOTE: EUR and USD exchange rates in the CSV are NOT imported
-  by Quicken's price import. Update them manually:
-  Tools > Currency List > double-click USD or EUR > enter rate.
+    CSV format:  Symbol, Price, Date (MM/DD/YYYY)
+
+    NOTE: EUR and USD exchange rates in the CSV are NOT imported
+    by Quicken's price import. Update them manually:
+    Tools > Currency List > double-click USD or EUR > enter rate.
 
 STEP 5 — Schedule daily downloads (optional)
 ---------------------------------------------
@@ -49,6 +59,11 @@ STEP 5 — Schedule daily downloads (optional)
      Start in : C:\path\to\   (folder with config.json)
   4. Click Finish
 
+  MS Store users: PriceToCSV is installed system-wide.
+  Use the full path shown in Task Scheduler when browsing
+  for the executable.
+
 ============================================================
   For full documentation see README.md
+  For Quicken automation see QUICKEN_SETUP.md
 ============================================================

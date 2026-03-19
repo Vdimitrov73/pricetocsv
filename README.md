@@ -12,24 +12,28 @@ Built for investors who:
 
 ## Quick Start (Windows)
 
-**[⬇ Latest ZIP release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)** — unzip anywhere, double-click `PriceToCSV.exe`
+**[⬇ Get it on the Microsoft Store](https://apps.microsoft.com/detail/9N8QB9ZLPPTB)** — installs in seconds, no SmartScreen warning, auto-updates
 
-1. Unzip the bundle anywhere on your PC
+Or download the **[latest ZIP release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)** — standalone `.exe`, no Python required
+
+1. Launch `PriceToCSV.exe` (from Start menu or unzipped folder)
 2. Edit `config.json` to add your ticker symbols
 3. Double-click `PriceToCSV.exe` — use the menu or run with `--run`
-4. Import the CSV into Quicken → Investing: **File → Import → Import Prices**
+4. Import the CSV into Quicken — or automate it with `ImportPrices.vbs` (see [QUICKEN_SETUP.md](QUICKEN_SETUP.md))
 
-That's it. See [INSTALL.md](INSTALL.md) if you need more detail.
+See [INSTALL.md](INSTALL.md) for all installation options.
 
 ---
 
 ## Download
 
+**[⬇ Microsoft Store](https://apps.microsoft.com/detail/9N8QB9ZLPPTB)** — recommended, auto-updates
+
 **[⬇ Latest ZIP release](https://gitlab.com/vdimitrov_73/pricetocsv/-/releases/permalink/latest)** — standalone `.exe`, no Python required
 
 **Source:** [GitLab](https://gitlab.com/vdimitrov_73/pricetocsv) (primary) | [GitHub](https://github.com/Vdimitrov73/pricetocsv) (mirror)
 
-> SmartScreen warning: click **More info** then **Run anyway**.
+> ZIP users — SmartScreen warning: click **More info** then **Run anyway**.
 
 ---
 
@@ -38,7 +42,7 @@ That's it. See [INSTALL.md](INSTALL.md) if you need more detail.
 - Downloads end-of-day adjusted close prices from Yahoo Finance
 - Supports US tickers (`VTI`, `TLT`, `AAPL`) and Canadian TSX tickers (`VUS.TO`, `XIC.TO`)
 - Strips `.TO` suffix and maps forex symbols for clean Quicken output
-- Fixed prices for some mutual funds (DYN6004, TDB8150, etc)
+- Fixed prices for some mutual funds (DYN6004, TDB8150, etc.)
 - Historical date-range downloads
 - Interactive menu or fully non-interactive CLI (`--run`)
 - Scheduled automation support via Windows Task Scheduler
@@ -92,6 +96,7 @@ Yahoo Finance Chart API (adjusted close)
            │
            ▼
    Quicken: File → Import → Import Prices
+   (or automated via ImportPrices.vbs — see QUICKEN_SETUP.md)
 ```
 
 ---
@@ -112,6 +117,7 @@ Recommended scheduled run time: **4:20 PM ET**.
 4. Click **Finish**
 
 After each run, import the new CSV from `%LOCALAPPDATA%\PriceToCSV\` into Quicken.
+(or automated via ImportPrices.vbs — see QUICKEN_SETUP.md)
 
 ---
 
@@ -168,6 +174,10 @@ Output directory: `%LOCALAPPDATA%\PriceToCSV\` (Windows)
 
 ## Quicken Import
 
+For one-click automated import and currency update, see **[QUICKEN_SETUP.md](QUICKEN_SETUP.md)**.
+
+Manual import:
+
 1. **File → Import → Security Prices**
 2. Select the CSV file → click **Import**
 
@@ -175,6 +185,7 @@ Output directory: `%LOCALAPPDATA%\PriceToCSV\` (Windows)
 > exchange rates. Update them manually after each import:
 > **Tools → Currency List** → double-click **USD** or **EUR** → enter the
 > rate shown in the script output or CSV.
+> (Automated via `ImportPrices.vbs` — see [QUICKEN_SETUP.md](QUICKEN_SETUP.md).)
 
 ---
 
@@ -195,10 +206,12 @@ Output directory: `%LOCALAPPDATA%\PriceToCSV\` (Windows)
 |------|---------|
 | `PriceToCSV.exe` | Standalone Windows executable — no Python required |
 | `PriceToCSV.py` | Python source — run directly with Python 3.9+ |
+| `ImportPrices.vbs` | Automates Quicken to import prices and update currencies |
 | `config.json` | Your symbol list, fixed prices, and aliases |
 | `setup.bat` | Python users: verifies Python install, shows run instructions |
 | `README.FIRST.txt` | Quick start guide included in the ZIP bundle |
 | `INSTALL.md` | Installation options and first-time setup |
+| `QUICKEN_SETUP.md` | Quicken automation setup (ImportPrices.vbs + QUICKEN.INI) |
 | `CHANGELOG.md` | Version history |
 
 ---

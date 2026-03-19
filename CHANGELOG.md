@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.5] — 2026-03-19
+
+### Added
+- Windows package published to the **Microsoft Store** (MSIX, auto-updates, no SmartScreen)
+- `ImportPrices.vbs`: automates Quicken to import today's prices and update
+  EUR/USD currency exchange rates with one click
+- `QUICKEN_SETUP.md`: full setup guide for QUICKEN.INI configuration,
+  toolbar button, and daily usage (replaces `QUICKEN_UPDATE.md`)
+
+### Changed
+- `INSTALL.md`: Microsoft Store added as Option A (recommended install method)
+- `README.md`: MS Store link added to Download and Quick Start sections;
+  Quicken import section now references `ImportPrices.vbs` and `QUICKEN_SETUP.md`
+- `README.FIRST.txt`: STEP 1 updated for MS Store users; STEP 4 updated to
+  reflect automated import via `ImportPrices.vbs`
+
+---
+
 ## [1.2.0] — 2026-03-15
 
 ### Changed
