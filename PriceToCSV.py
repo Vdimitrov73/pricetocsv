@@ -167,15 +167,24 @@ def is_forex(symbol: str) -> bool:
 
 def _get_json(url: str) -> dict | None:
     req = urllib.request.Request(url, headers=_HEADERS)
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        print(f"HTTP {exc.code} — symbol not found or rate-limited")
-    except urllib.error.URLError as exc:
-        print(f"Network error: {exc.reason}")
-    except Exception as exc:
-        print(f"Unexpected error: {exc}")
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            if exc.code in (429, 502, 503, 504) and attempt < 2:
+                wait = 1 << attempt  # 1, 2, 4 seconds
+                print(f"HTTP {exc.code}, retrying in {wait}s...")
+                time.sleep(wait)
+                continue
+            print(f"HTTP {exc.code} — symbol not found or rate-limited")
+        except urllib.error.URLError as exc:
+            print(f"Network error: {exc.reason}")
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"Response error: {exc}")
+        except Exception as exc:
+            print(f"Unexpected error: {exc}")
+        break
     return None
 
 
@@ -190,6 +199,10 @@ def fetch_prices(symbol: str, period1: int, period2: int) -> list[tuple[str, flo
         return []
     try:
         result     = data["chart"]["result"][0]
+        meta_sym   = result.get("meta", {}).get("symbol", "")
+        if meta_sym and meta_sym.upper() != symbol.upper():
+            print(f"Symbol mismatch: requested {symbol}, got {meta_sym}")
+            return []
         timestamps = result.get("timestamp", [])
         adj_close  = result["indicators"]["adjclose"][0]["adjclose"]
     except (KeyError, IndexError, TypeError):
@@ -197,7 +210,10 @@ def fetch_prices(symbol: str, period1: int, period2: int) -> list[tuple[str, flo
         return []
 
     rows: list[tuple[str, float]] = []
-    for ts, price in zip(timestamps, adj_close):
+    if adj_close is not None and len(timestamps) != len(adj_close):
+        print(f"Data length mismatch for {symbol}: "
+              f"{len(adj_close)} prices vs {len(timestamps)} timestamps")
+    for ts, price in zip(timestamps, adj_close or ()):
         if price is None:
             continue
         date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%m/%d/%Y")

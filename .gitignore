@@ -27,3 +27,7 @@ pip-wheel-metadata/
 .vscode/
 .idea/
 *.swp
+
+# Claude Code
+.claude/*
+!CLAUDE.md

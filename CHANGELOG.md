@@ -5,6 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.6] — 2026-05-23
+
+### Fixed
+- fetch_prices(): added symbol mismatch check against meta.symbol to prevent
+  wrong prices from reaching Quicken on redirected/delisted tickers
+- fetch_prices(): added timestamp/adjclose array parity check for silent data loss
+- _get_json(): exponential backoff retry (1s, 2s) on HTTP 429/502/503/504
+
 ## [1.2.5] — 2026-03-19
 
 ### Added
