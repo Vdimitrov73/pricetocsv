@@ -1,8 +1,8 @@
 # version.txt
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 2, 5, 0),
-    prodvers=(1, 2, 5, 0),
+    filevers=(1, 2, 6, 0),
+    prodvers=(1, 2, 6, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,10 +16,10 @@ VSVersionInfo(
         u'040904B0',
         [StringStruct(u'CompanyName',      u'Vdimitrov73'),
          StringStruct(u'FileDescription',  u'PriceToCSV'),
-         StringStruct(u'FileVersion',      u'1.2.5.0'),
+         StringStruct(u'FileVersion',      u'1.2.6.0'),
          StringStruct(u'InternalName',     u'PriceToCSV'),
          StringStruct(u'ProductName',      u'PriceToCSV'),
-         StringStruct(u'ProductVersion',   u'1.2.5.0'),
+         StringStruct(u'ProductVersion',   u'1.2.6.0'),
          StringStruct(u'OriginalFilename', u'PriceToCSV.exe')])
     ]),
     VarFileInfo([VarStruct(u'Translation', [0x0409, 1200])])

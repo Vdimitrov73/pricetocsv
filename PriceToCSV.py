@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.5
+PriceToCSV v1.2.6
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -17,7 +17,7 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.5"
+VERSION   = "1.2.6"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
