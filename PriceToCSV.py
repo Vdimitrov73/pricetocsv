@@ -1,5 +1,5 @@
 """
-PriceToCSV v1.2.6
+PriceToCSV v1.2.7
 Download end-of-day adjusted close prices from Yahoo Finance.
 Produces Quicken-compatible CSV:  Symbol, Price, Date
 Standard library only — no external dependencies.
@@ -17,7 +17,7 @@ import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION   = "1.2.6"
+VERSION   = "1.2.7"
 APP_NAME  = "PriceToCSV"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/"
 _HEADERS  = {
@@ -120,17 +120,23 @@ _DEFAULT_CFG: dict = {
 
 def load_config(path: Path) -> dict:
     if not path.exists():
-        return dict(_DEFAULT_CFG)
+        return {"symbols": [], "fixed_prices": {}, "symbol_aliases": dict(_DEFAULT_CFG["symbol_aliases"])}
     try:
         with path.open(encoding="utf-8") as f:
             cfg = json.load(f)
         cfg.setdefault("symbols", [])
         cfg.setdefault("fixed_prices", {})
-        cfg.setdefault("symbol_aliases", _DEFAULT_CFG["symbol_aliases"])
+        cfg.setdefault("symbol_aliases", dict(_DEFAULT_CFG["symbol_aliases"]))
+        if not isinstance(cfg.get("symbols"), list):
+            print(f"[WARN] Invalid 'symbols' in config; using [].")
+            cfg["symbols"] = []
+        if not isinstance(cfg.get("fixed_prices"), dict):
+            print(f"[WARN] Invalid 'fixed_prices' in config; using {{}}.")
+            cfg["fixed_prices"] = {}
         return cfg
     except (json.JSONDecodeError, OSError) as exc:
         print(f"[WARN] Cannot read config ({exc}); using defaults.")
-        return dict(_DEFAULT_CFG)
+        return {"symbols": [], "fixed_prices": {}, "symbol_aliases": dict(_DEFAULT_CFG["symbol_aliases"])}
 
 
 def save_config(cfg: dict, path: Path) -> None:
@@ -179,6 +185,11 @@ def _get_json(url: str) -> dict | None:
                 continue
             print(f"HTTP {exc.code} — symbol not found or rate-limited")
         except urllib.error.URLError as exc:
+            if attempt < 2:
+                wait = 1 << attempt  # 1, 2 seconds
+                print(f"Network error ({exc.reason}), retrying in {wait}s...")
+                time.sleep(wait)
+                continue
             print(f"Network error: {exc.reason}")
         except (json.JSONDecodeError, OSError) as exc:
             print(f"Response error: {exc}")
@@ -224,7 +235,7 @@ def fetch_prices(symbol: str, period1: int, period2: int) -> list[tuple[str, flo
 # ── Download orchestration ────────────────────────────────────────────────────
 
 def _to_ts(date_str: str) -> int:
-    return int(datetime.strptime(date_str, "%Y-%m-%d").timestamp())
+    return int(datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
 
 
 def _fetch_sym(sym: str, p1: int, p2: int, historical: bool) -> list[tuple[str, float]] | None:
@@ -279,12 +290,17 @@ def run_download(
         label = datetime.today().strftime("%Y%m%d")
         print(f"\nDownloading end-of-day prices  ({datetime.today().strftime('%Y-%m-%d')})\n")
    
-   # ── Section 1: Fixed prices ───────────────────────────────────────────────			   
-    fixed_rows: list[tuple] = []
+   # ── Validate fixed prices first (no output rows yet) ───────────────────
+    fixed_valid: list[tuple] = []
     for sym, price in fixed.items():
+        try:
+            price_f = round(float(price), 4)
+        except (TypeError, ValueError):
+            print(f"  {sym:<16} [WARN] invalid fixed price {price!r} — skipped")
+            continue
         out_sym = display_name(sym, aliases)
-        print(f"  {sym:<16} {round(price,4)}  (fixed)")
-        fixed_rows.append((out_sym, round(price, 4), today_str))
+        print(f"  {sym:<16} {price_f}  (fixed)")
+        fixed_valid.append((sym, out_sym, price_f))
 
    # ── Section 2: Regular tickers ────────────────────────────────────────────		   
     regular_rows: list[tuple] = []
@@ -308,17 +324,48 @@ def run_download(
         for date_str, price in result:
             forex_rows.append((out_sym, round(price, 4), date_str))
 
+   # ── Section 1 (deferred): Fixed rows ──────────────────────────────────────
+    fixed_rows: list[tuple] = []
+    if historical:
+        dates = sorted(
+            {r[2] for r in regular_rows + forex_rows},
+            key=lambda d: datetime.strptime(d, "%m/%d/%Y"),
+        )
+        if not dates:
+            dates = [datetime.strptime(start, "%Y-%m-%d").strftime("%m/%d/%Y")]
+        for _sym, out_sym, price_f in fixed_valid:
+            for d in dates:
+                fixed_rows.append((out_sym, price_f, d))
+    else:
+        for _sym, out_sym, price_f in fixed_valid:
+            fixed_rows.append((out_sym, price_f, today_str))
+
     rows = fixed_rows + regular_rows + forex_rows
 
     if not rows:
         print("\n[WARN] No data to write.")
         return None
 
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"[ERROR] Cannot create output dir {out_dir}: {exc}")
+        return None
     csv_path = out_dir / f"prices_{label}.csv"
-    with csv_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Symbol", "Price", "Date"])
-        writer.writerows(rows)
+    tmp_path = csv_path.with_suffix(".tmp")
+    try:
+        with tmp_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Symbol", "Price", "Date"])
+            writer.writerows(rows)
+        tmp_path.replace(csv_path)
+    except OSError as exc:
+        print(f"[ERROR] Cannot write CSV {csv_path}: {exc}")
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return None
 
     print(f"\n  ✓  {len(rows)} row(s) written → {csv_path}\n")
     return csv_path

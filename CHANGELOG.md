@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.7] — 2026-10-06
+
+### Fixed
+- Historical mode: fixed prices now expand per market date instead of today's date
+- `_to_ts()`: UTC-anchored, fixes local-TZ shift on historical ranges
+- `_get_json()`: retry transient URLError/timeout (1s, 2s)
+- `load_config()`: no shared mutable defaults + type guards
+- Fixed-price strings coerced, bad values skipped without aborting run
+- CSV write atomic (.tmp → replace) with OSError handling
+
 ## [1.2.6] — 2026-05-23
 
 ### Fixed
